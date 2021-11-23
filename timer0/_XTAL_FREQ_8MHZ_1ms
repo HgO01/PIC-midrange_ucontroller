@@ -1,0 +1,40 @@
+//==========================================================//
+// timer: Timer0_init										
+// controller: PIC16F877A
+// timer overflows: 1ms										
+// note:create a global variable tagged 					
+//  	"overflows = delay/sub_delay", it will give			
+//		number of overflows need to reach your specified	
+//		delay.												
+// Example: delay = 1s 										
+//			overflows = 1000/1 = 1000						
+//==========================================================//
+
+
+void timer0_init(void)
+{
+    //prescaler val = 8 // sub_delay = 1ms
+    OPTION_REG = 0x82;
+    TMR0 = 6;
+    //INTCON = 0xA0;
+    
+    GIE = 1;
+    PEIE = 1;
+    TMR0IF = 0;
+    TMR0IE = 1;
+}
+
+void interrupt timer0()
+{
+    if(TMR0IF)
+    {
+        TMR0IF = 0; // clear timer flag
+        TMR0 = 6; // reload the timer
+        count++;
+        
+        if(count == overflows) 
+        {
+            //statements
+        }
+    }
+}
