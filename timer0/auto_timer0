@@ -1,0 +1,115 @@
+//===========================================================//
+// Description: These codes formed the automated version of  //
+//              timer0, it save your time of calculating the //
+//              number of flows, prescaler and TMR0 register // 
+//              values needed to set a delay or to set timer //
+//              in counter mode.                             //
+//                                                           //
+//============================================================//
+
+
+
+//macros definitions
+#define _XTAL_FREQ 80000 //8MHz
+#define delay 2000 // main delay in mili-seconds
+#define sub_delay   2  // delay per overflow
+#define overflows  delay/sub_delay // this contain the numbers of overflows need to complete the delay
+
+//global variables
+int count = 0;
+uint8_t regVal = 0;
+
+void timer0_init(char mode)
+{
+	uint8_t prescaler = 1,val;
+
+	unsigned int noTicks = (delay*_XTAL_FREQ)/4;
+
+
+	//the loop ensure the number of tick is lesser than 256
+ 
+	while(noTicks > 256 && prescaler <=256)
+	{
+		noTicks /=2; // noTicks/prescaler
+
+		prescaler*=2; // check the precaler val
+
+	}
+  
+  //calculate the percentage error
+	float error = (delay - ((noTicks*4*prescaler)/_XTAL_FREQ))*100/delay;
+  
+  //if prescaler value is not greater than 256(max) and error is not greater than 0.16%
+	if(prescaler <=256 && error <=0.16)
+	{
+		regVal = 256-noTicks; // value to be stored in the TMR0 reg
+	}
+	
+
+	
+	if(mode == 1) //is timer mode selected 
+		OPTION_REG = 0xD0; //0b11010000
+
+	else if( mode == 2) // is counter mode selected and transition is H->L
+		OPTION_REG = 0xF0;
+
+	else OPTION_REG = 0xE0; // counter mode L->H
+
+  //check the prescaler value, and mask the OPTION_REG to configure it
+	switch(prescaler)
+	{
+		case 4:
+				val = 0x01;
+				break;
+		case 8: 
+				val = 0x02;
+				break;
+		case 16:
+				val = 0x03;
+				break;
+		case 64:
+				val = 0x04;
+				break;
+		case 128:
+				val = 0x06;
+				break;
+		case 256:
+				val = 0x07;
+				break;
+
+		default:
+				val = 0x00;
+
+	}
+
+	OPTION_REG |= val; //mask three most significant bits
+
+	TMR0 = regVal;
+  
+  //Interrupt configurations
+	GIE = 1;
+	PEIE = 1;
+	TMR0IF = 0;
+	TMR0IE = 1;
+}
+
+
+//============================================================//
+//                                                            //
+//              Interrupt service rountine(ISR)               //
+//============================================================//
+void interrupt timer0()
+{
+    if(TMR0IF)
+    {
+        TMR0IF = 0; // clear timer flag
+        TMR0 = regVal; // reload the timer
+        count++;
+        
+        if(count == overflows) 
+        {
+            count=0;
+            //statements
+        }
+    }
+}
